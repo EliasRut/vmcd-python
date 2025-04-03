@@ -272,7 +272,7 @@ def build_room_layout(difficulty):
         return [
             Room("start", "You are in a dark room. You can see a passage to the east.", "", ""),
             Room("bronze key", get_room_fluff_text(difficulty), "", RoomContent.BRONZE_KEY.value),
-            Room("bronze door", "You are in a room with a small fireplace in the corner.", "", RoomContent.LOCKED_DOOR_WITH_BRONZE_KEY.value),
+            Room("bronze door",get_room_fluff_text(difficulty), "", RoomContent.LOCKED_DOOR_WITH_BRONZE_KEY.value),
             Room("end", "You are in a room with a large treasure chest.", "", "")
         ]
         
@@ -288,11 +288,11 @@ def build_room_layout(difficulty):
         layout = place_before(layout, [
             [
             Room("bronze key", get_room_fluff_text(difficulty), "", RoomContent.BRONZE_KEY.value),
-            Room("bronze door", "You are in a room with a small fireplace in the corner.", "", RoomContent.LOCKED_DOOR_WITH_BRONZE_KEY.value),
+            Room("bronze door", get_room_fluff_text(difficulty), "", RoomContent.LOCKED_DOOR_WITH_BRONZE_KEY.value),
             ],
             [
             Room("silver key", get_room_fluff_text(difficulty), "", RoomContent.SILVER_KEY.value),
-            Room("silver door", "You are in a room with a small fireplace in the corner.", "", RoomContent.LOCKED_DOOR_WITH_SILVER_KEY.value),
+            Room("silver door", get_room_fluff_text(difficulty), "", RoomContent.LOCKED_DOOR_WITH_SILVER_KEY.value),
             ],
         ])
         return layout
@@ -450,7 +450,7 @@ def enter_room(room_index):
 
 def start_game(difficulty):
     """
-    Starts the game with the given difficulty
+    Starts the game with the given difficulty. Difficulty can be between 0 and 9.
     """
 
     global game_state
@@ -608,7 +608,7 @@ def get_room_type():
         
     if game_state.has_lost or game_state.has_won:
         print("Game is over")
-        return
+        return "game over"
 
     if game_state.difficulty >= 7:
         print("getRoomType can not be used in difficulty 7+.")
@@ -628,7 +628,7 @@ def get_room_content():
     
     if game_state.has_lost or game_state.has_won:
         print("Game is over")
-        return
+        return "game over"
     
     if game_state.difficulty >= 7:
         print("getRoomType can not be used in difficulty 7+.")
