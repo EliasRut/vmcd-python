@@ -28,7 +28,7 @@ def get_text_for_content(content):
     if content == RoomContent.BRONZE_KEY.value:
         return "You see a bronze key on a pedestal."
     elif content == RoomContent.SILVER_KEY.value:
-        return "You see a silver key lying on a table ."
+        return "You see a silver key lying on a table."
     elif content == RoomContent.GOLD_KEY.value:
         prefix = "You see a gold key in a glass case. "
         if game_state.is_lever_pulled:
@@ -70,6 +70,8 @@ def get_text_for_content(content):
     elif content == RoomContent.COOPERATIVE_GARGOYLE.value:
         return "A gargoyle stands to the side, you can continue eastwards."
     else:
+        if game_state.difficulty < 8:
+            return "The room is empty."
         return ""
 
 class Room:
@@ -98,7 +100,8 @@ class Room:
             full_text += f" {get_text_for_content(self.content)}"
         if self.description_postfix:
             full_text += f" {self.description_postfix}"
-        return full_text
+        # trim text before returning
+        return full_text.strip()
 
 
 sister_a_names = ["Lilith", "Laila", "Luna"]
@@ -125,6 +128,7 @@ class GameState:
         self.gargoyle_sister_question = randint(0, 1)
         self.difficulty = 0
         self.used_room_fluff_texts = []
+        self.used_room_postfix_texts = []
 
     def __str__(self):
         return f"Bronze key: {self.has_bronze_key}, Silver key: {self.has_silver_key}, Gold key: {self.has_gold_key}, Lever: {self.is_lever_pulled}"
@@ -173,6 +177,10 @@ def get_room_fluff_text(difficulty):
     """
     Returns a random text for a given room and index. Makes sure to not re-use options.
     """
+
+    if difficulty < 8:
+        return ""
+
     options = [
         "You find yourself in a library. Bookshelfs span all walls from the floor to the ceiling.",
         "The room you are in seems to be a large storage closet, brooms and cleaning material is neatly organized.",
@@ -201,6 +209,47 @@ def get_room_fluff_text(difficulty):
     return options[picked_option]
 
 
+def get_room_postfix_text(difficulty):
+    """
+    Returns a random postfix text for a given room and index. Makes sure to not re-use options.
+    """
+
+    if difficulty < 9:
+        return ""
+
+    # What follows is a list of options we can append to the relevant information to make it more difficult
+    # All of this fluff is irrelevant for the actual execution
+    options = [
+        "Music seems to playing in the background. You don't recognize the key, but it's a soothing melody.",
+        "A radio is playing full blast. As you look around, some song from the Doors starts to play.",
+        "One of those annoying motivational poster is plastered on the far wall. It reads Failure is the key to Success. Whatever.",
+        "Someone painted a clique line on the ceiling: Love opens every door. Right.",
+        "A toy crane made out of plastic is standing on a random spot on the floor. It's a detailed representation, including levers and such.",
+        "A running TV is hanging from the ceiling. Some horror flick about a ghost.",
+        "A vase full with roses decorates a small pedestal standing in a corner.",
+        "A vague smell of curry tickles your nose. You notice you're getting hungry.",
+        "A small table is standing in the middle of the room. A chess game is set up on it. The pieces are all in their starting positions.",
+        "A large mirror is hanging on the wall. You notice your hair is a mess.",
+        "An old cuckoo clock is hanging on the wall. The clock ticks loudly and you can hear the gears turning.",
+        "A large painting of a landscape covers one wall. It looks like it was painted by a child.",
+        "A large fireplace is in the middle of the room. The fire is lit and a pot is cooking over it.",
+        "A large chandelier hangs from the ceiling. It looks like it hasn't been cleaned in ages.",
+        "The room is filled with the smell of burnt food. You notice a small stove in the corner.",
+    ]
+
+    global game_state
+
+    available_options = []
+    for option_index in range(0, len(options)):
+        if not option_index in game_state.used_room_postfix_texts:
+            available_options.append(option_index)
+
+    picked_option_index = randint(0, len(available_options)-1)
+    picked_option = available_options[picked_option_index]
+    game_state.used_room_postfix_texts.append(picked_option)
+    return options[picked_option]
+
+
 def build_room_layout(difficulty):
     """
     Returns a dictionary representing the layout of the rooms in the game
@@ -209,14 +258,14 @@ def build_room_layout(difficulty):
     if difficulty == 0:
         return [
             Room("start", "You are in a dark room. You can see a passage to the east.", "", ""),
-            Room("end", "You are in a room with a large treasure chest. You have won the game.", "", "")
+            Room("end", "You are in a room with a large treasure chest.", "", "")
         ]
 
     if difficulty == 1:
         return [
             Room("start", "You are in a dark room. You can see a passage to the east.", "", ""),
             Room("unlocked door", get_room_fluff_text(difficulty), "", RoomContent.UNLOCKED_DOOR.value),
-            Room("end", "You are in a room with a large treasure chest. You have won the game.", "", "")
+            Room("end", "You are in a room with a large treasure chest.", "", "")
         ]
     
     if difficulty == 2:
@@ -224,7 +273,7 @@ def build_room_layout(difficulty):
             Room("start", "You are in a dark room. You can see a passage to the east.", "", ""),
             Room("bronze key", get_room_fluff_text(difficulty), "", RoomContent.BRONZE_KEY.value),
             Room("bronze door", "You are in a room with a small fireplace in the corner.", "", RoomContent.LOCKED_DOOR_WITH_BRONZE_KEY.value),
-            Room("end", "You are in a room with a large treasure chest. You have won the game.", "", "")
+            Room("end", "You are in a room with a large treasure chest.", "", "")
         ]
         
     if difficulty == 3:
@@ -234,7 +283,7 @@ def build_room_layout(difficulty):
             Room("open slot", "", "", ""),
             Room("open slot", "", "", ""),
             Room("open slot", "", "", ""),
-            Room("end", "You are in a room with a large treasure chest. You have won the game.", "", "")
+            Room("end", "You are in a room with a large treasure chest.", "", "")
         ]
         layout = place_before(layout, [
             [
@@ -258,7 +307,7 @@ def build_room_layout(difficulty):
             Room("open slot", "", "", ""),
             Room("open slot", "", "", ""),
             Room("open slot", "", "", ""),
-            Room("end", "You are in a room with a large treasure chest. You have won the game.", "", "")
+            Room("end", "You are in a room with a large treasure chest.", "", "")
         ]
         layout = place_before(layout, [
             [
@@ -290,7 +339,7 @@ def build_room_layout(difficulty):
             Room("open slot", "", "", ""),
             Room("open slot", "", "", ""),
             Room("open slot", "", "", ""),
-            Room("end", "You are in a room with a large treasure chest. You have won the game.", "", "")
+            Room("end", "You are in a room with a large treasure chest.", "", "")
         ]
         layout = place_before(layout, [
             [
@@ -314,7 +363,7 @@ def build_room_layout(difficulty):
         ])
         return layout
 
-    if difficulty == 6:
+    if difficulty >= 6:
         layout = [
             Room("start", "You are in a dark room. You can see a passage to the east.", "", ""),
             Room("open slot", "", "", ""),
@@ -327,24 +376,24 @@ def build_room_layout(difficulty):
             Room("open slot", "", "", ""),
             Room("open slot", "", "", ""),
             Room("open slot", "", "", ""),
-            Room("end", "You are in a room with a large treasure chest. You have won the game.", "", "")
+            Room("end", "You are in a room with a large treasure chest.", "", "")
         ]
         layout = place_before(layout, [
             [
-            Room("gold key", get_room_fluff_text(difficulty), "", RoomContent.GOLD_KEY.value),
-            Room("lever", get_room_fluff_text(difficulty), "", RoomContent.UNPULLED_LEVER.value),
-            Room("gold door", get_room_fluff_text(difficulty), "", RoomContent.LOCKED_DOOR_WITH_GOLD_KEY.value),
+            Room("gold key", get_room_fluff_text(difficulty), get_room_postfix_text(difficulty), RoomContent.GOLD_KEY.value),
+            Room("lever", get_room_fluff_text(difficulty), get_room_postfix_text(difficulty), RoomContent.UNPULLED_LEVER.value),
+            Room("gold door", get_room_fluff_text(difficulty), get_room_postfix_text(difficulty), RoomContent.LOCKED_DOOR_WITH_GOLD_KEY.value),
             ],
             [
-            Room("silver key", get_room_fluff_text(difficulty), "", RoomContent.SILVER_KEY.value),
-            Room("silver door", get_room_fluff_text(difficulty), "", RoomContent.LOCKED_DOOR_WITH_SILVER_KEY.value),
+            Room("silver key", get_room_fluff_text(difficulty), get_room_postfix_text(difficulty), RoomContent.SILVER_KEY.value),
+            Room("silver door", get_room_fluff_text(difficulty), get_room_postfix_text(difficulty), RoomContent.LOCKED_DOOR_WITH_SILVER_KEY.value),
             ],
             [
-            Room("ghost sister a", get_room_fluff_text(difficulty), "", RoomContent.GHOST_SISTER_A.value),
-            Room("bronze key", get_room_fluff_text(difficulty), "", RoomContent.BRONZE_KEY.value),
-            Room("bronze door", get_room_fluff_text(difficulty), "", RoomContent.LOCKED_DOOR_WITH_BRONZE_KEY.value),
-            Room("ghost sister b", get_room_fluff_text(difficulty), "", RoomContent.GHOST_SISTER_B.value),
-            Room("gargoyle", get_room_fluff_text(difficulty), "", RoomContent.BLOCKING_GARGOYLE.value),
+            Room("ghost sister a", get_room_fluff_text(difficulty), get_room_postfix_text(difficulty), RoomContent.GHOST_SISTER_A.value),
+            Room("bronze key", get_room_fluff_text(difficulty), get_room_postfix_text(difficulty), RoomContent.BRONZE_KEY.value),
+            Room("bronze door", get_room_fluff_text(difficulty), get_room_postfix_text(difficulty), RoomContent.LOCKED_DOOR_WITH_BRONZE_KEY.value),
+            Room("ghost sister b", get_room_fluff_text(difficulty), get_room_postfix_text(difficulty), RoomContent.GHOST_SISTER_B.value),
+            Room("gargoyle", get_room_fluff_text(difficulty), get_room_postfix_text(difficulty), RoomContent.BLOCKING_GARGOYLE.value),
             ]
         ])
         game_state.gargoyle_sister_question = 2
@@ -377,11 +426,12 @@ def enter_room(room_index):
         loose_game()
         return
     
+    room = game_state.rooms[room_index]
     if room_index == len(game_state.rooms) - 1:
+        print(room.get_description())
         win_game()
         return
     
-    room = game_state.rooms[room_index]
     if room.content == RoomContent.GHOST_SISTER_A.value:
         if game_state.steps_since_sister_a < 0:
             game_state.steps_since_sister_a = 0
@@ -393,7 +443,6 @@ def enter_room(room_index):
             game_state.steps_since_sister_b = 0
     else:
         game_state.steps_since_sister_b = game_state.steps_since_sister_b + 1
-    
     
     game_state.current_room = room_index
     print(room.get_description())
@@ -443,6 +492,7 @@ def go_east():
         loose_game()
         return
 
+    print("You go east into the next room.")
     enter_room(game_state.current_room + 1)
 
 def go_west():
@@ -455,7 +505,7 @@ def go_west():
         print("Game is over")
         return    
 
-
+    print("You go west into the previous room.")
     enter_room(game_state.current_room - 1)
 
 def open_door():
@@ -517,8 +567,11 @@ def speak(text):
         print("Game is over")
         return
     
+
+
     room = game_state.rooms[game_state.current_room]
     if room.content == RoomContent.BLOCKING_GARGOYLE.value:
+        print("You answer the gargoyle:", text)
         if game_state.gargoyle_sister_question == 0:
             if text == game_state.sister_b_name:
                 print("The gargoyle nods. \"Correct.\". It moves to the side.")
@@ -541,6 +594,9 @@ def speak(text):
             else:
                 print("The gargoyle shakes it's head. \"That's wrong.\".")
                 loose_game()
+    else:
+        print("You say:", text, "but no one is listening.")
+        loose_game()
 
 
 def get_room_type():
