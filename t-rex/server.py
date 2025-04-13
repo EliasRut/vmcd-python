@@ -4,8 +4,22 @@ from typing import List
 
 app = FastAPI()
 
+class CollisionBox(BaseModel):
+    """
+    Define the structure of a collision box object.
+    """
+    x: int
+    y: int
+    width: int
+    height: int
+    pass
+
 class Obstacle(BaseModel):
     # Define the structure of an obstacle object here
+    collisionBoxes: List[CollisionBox]  # List of collision boxes for the obstacle
+    type: str  # Type of the obstacle
+    xPos: int  # X position of the obstacle
+    yPos: int  # Y position of the obstacle
     pass
 
 class CallData(BaseModel):
@@ -13,6 +27,8 @@ class CallData(BaseModel):
     Define the structure of the call data object.
     """
     obstacles: List[dict]  # List of obstacles, each represented as a dictionary
+    speed: float  # Speed of the t-rex
+    isNight: bool  # Indicates whether it is night or not
     pass
 
 class CallResponse(BaseModel):
@@ -31,7 +47,8 @@ def process_obstacles(data: CallData) -> CallResponse:
     """
     # Implement the logic to process the obstacles and determine if the t-rex should jump
     # For now, we will just return True as a placeholder
-    return {"jump": False}
+
+    return {"jump": True}
 
 @app.get("/")
 def root():

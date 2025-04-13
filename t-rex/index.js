@@ -68,6 +68,7 @@
 
     // Flag for handling server control
     this.isAwaitingServerResponse = false;
+    this.lastCallTime = 0;
 
     if (this.isDisabled()) {
       this.setupDisabledRunner();
@@ -83,6 +84,7 @@
    */
   var DEFAULT_WIDTH = 600;
 
+  var SERVER_CALL_INTERVAL = 100; // 10 FPS
   /**
    * Frames per second.
    * @const
@@ -603,10 +605,23 @@
         }
 
         // Check with the python server whether the T-Rex should jump
-        if (!this.isAwaitingServerResponse) {
+        if (
+          !this.isAwaitingServerResponse &&
+          this.lastCallTime + SERVER_CALL_INTERVAL < now
+        ) {
           console.log(`Sending request to server...`);
+          this.lastCallTime = now;
           try {
             this.isAwaitingServerResponse = true;
+
+            const cleanedObstacles = (this.horizon.obstacles || []).map(
+              (obstacle) => ({
+                collisionBoxes: obstacle.collisionBoxes,
+                type: obstacle.typeConfig.type,
+                xPos: obstacle.xPos,
+                yPos: obstacle.yPos,
+              })
+            );
 
             fetch("http://127.0.0.1:8000/process_obstacles", {
               method: "POST",
@@ -614,7 +629,9 @@
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                obstacles: this.horizon.obstacles || [],
+                speed: this.currentSpeed,
+                isNight: this.inverted,
+                obstacles: cleanedObstacles,
               }),
             })
               .then((response) => response.json())
