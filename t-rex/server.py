@@ -1,59 +1,59 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import List
+from definitions import GetModeResponse, ProcessObstaclesCallData, ProcessObstaclesCallResponse, PlanCallData, PlanCallResponse
 
-app = FastAPI()
-
-class CollisionBox(BaseModel):
-    """
-    Define the structure of a collision box object.
-    """
-    x: int
-    y: int
-    width: int
-    height: int
-    pass
-
-class Obstacle(BaseModel):
-    # Define the structure of an obstacle object here
-    collisionBoxes: List[CollisionBox]  # List of collision boxes for the obstacle
-    type: str  # Type of the obstacle
-    xPos: int  # X position of the obstacle
-    yPos: int  # Y position of the obstacle
-    pass
-
-class CallData(BaseModel):
-    """
-    Define the structure of the call data object.
-    """
-    obstacles: List[dict]  # List of obstacles, each represented as a dictionary
-    speed: float  # Speed of the t-rex
-    isNight: bool  # Indicates whether it is night or not
-    pass
-
-class CallResponse(BaseModel):
-    """
-    Define the structure of the call response object.
-    """
-    jump: bool  # Indicates whether the t-rex should jump or not
-    # Add any other fields you need in the response
-    pass
+app = FastAPI()  
 
 # The actual logic to process the obstacles will be implemented in this function
 @app.post("/process_obstacles")
-def process_obstacles(data: CallData) -> CallResponse:
+def process_obstacles(data: ProcessObstaclesCallData) -> ProcessObstaclesCallResponse:
     """
     Process a list of obstacles and return True if the t-rex should jump, False otherwise.
     """
     # Implement the logic to process the obstacles and determine if the t-rex should jump
     # For now, we will just return True as a placeholder
 
-    return {"jump": True}
+    for obstacle in data.obstacles:
+        if obstacle["xPos"] < 100 + (data.speed * 10):  # Example condition to check if the obstacle is close
+            return {"jump": True}
 
+    ####################################################################################
+    # This is where your code goes                                                     #
+    # You can access the obstacles using data.obstacles                                #
+    # You can access the speed using data.speed                                        #
+    ####################################################################################
+
+    return {"jump": False}
+
+
+# The actual logic to process the obstacles will be implemented in this function
+@app.post("/plan")
+def plan(data: PlanCallData) -> PlanCallResponse:
+    """
+    Process a list of obstacles and return a list of timestamps relative to 0 for when the t-rex
+    should jump.
+    """
+    # Implement the logic to plan for all future obstacles
+
+    ####################################################################################
+    # This is where your code goes                                                     #
+    # You can access the obstacles using data.obstacles                                #
+    # You can access the speed using data.speed                                        #
+    ####################################################################################
+
+    return {} # "jumpTimes": [1000, 2000, 3000]}  # Example response with jump times
+
+@app.get("/mode")
+def get_mode() -> GetModeResponse:
+    """
+    Informs the frontend which game mode we want to use.
+    """
+    return {"mode": "live"}  # Either "live" or "plan"
+
+# Server index.html page under root path
 @app.get("/")
 def root():
     """
-    Serve the static/index.html file.
+    Serve the index.html file.
     """
     import os
     from fastapi.responses import FileResponse
@@ -63,9 +63,9 @@ def root():
         return FileResponse(file_path)
     else:
         return {"error": "File not found"}
-    
 
-# Webserver setup to server all static files in the current directory
+
+# Webserver setup to server all other static files in the current directory
 @app.get("/{file_path:path}")
 def static_files(file_path: str):
     """
@@ -79,5 +79,3 @@ def static_files(file_path: str):
         return FileResponse(file_path)
     else:
         return {"error": "File not found"}
-# To run the server, use the command:
-# uvicorn server:app --reload

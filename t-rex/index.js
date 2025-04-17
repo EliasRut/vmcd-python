@@ -67,8 +67,12 @@
     this.imagesLoaded = 0;
 
     // Flag for handling server control
+    this.hasFetchedGameMode = false;
+    this.isFetchingGameMode = false;
+    this.gameMode = "live";
     this.isAwaitingServerResponse = false;
     this.lastCallTime = 0;
+    this.jumpTimes = [];
 
     if (this.isDisabled()) {
       this.setupDisabledRunner();
@@ -570,6 +574,59 @@
      * Update the game frame and schedules the next one.
      */
     update: function () {
+      if (this.hasFetchedGameMode) {
+      } else if (this.isFetchingGameMode) {
+        return;
+      } else {
+        this.isFetchingGameMode = true;
+        fetch("http://127.0.0.1:8000/mode", {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("Server response for Game Mode:", data);
+            if (data.mode) {
+              this.gameMode = data.mode;
+
+              if (this.gameMode === "plan") {
+                // this.planObstacles();
+                // Inform the server about the planned obstacles
+                console.log("Planning obstacles...");
+                return fetch("http://172.0.0.1:8000/plan", {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    obstacles: this.horizon.obstacles,
+                    initialSpeed: this.currentSpeed,
+                    acceleration: this.config.ACCELERATION,
+                  }),
+                })
+                  .then((response) => response.json())
+                  .then((data) => {
+                    console.log("Server response for planned obstacles:", data);
+                    this.jumpTimes = data.jumpTimes;
+                  });
+              }
+            } else {
+              this.gameMode = "live";
+              console.warn('Defaulting to "live" mode');
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching game mode:", error);
+            this.gameMode = "live";
+          })
+          .finally(() => {
+            this.isFetchingGameMode = false;
+            this.hasFetchedGameMode = true;
+          });
+      }
+
       this.updatePending = false;
 
       var now = getTimeStamp();
@@ -591,6 +648,10 @@
           this.playIntro();
         }
 
+        if (!this.hasFetchedGameMode) {
+          return;
+        }
+
         // The horizon doesn't move until the intro is over.
         if (this.playingIntro) {
           this.horizon.update(0, this.currentSpeed, hasObstacles);
@@ -605,52 +666,60 @@
         }
 
         // Check with the python server whether the T-Rex should jump
-        if (
-          !this.isAwaitingServerResponse &&
-          this.lastCallTime + SERVER_CALL_INTERVAL < now
-        ) {
-          console.log(`Sending request to server...`);
-          this.lastCallTime = now;
-          try {
-            this.isAwaitingServerResponse = true;
+        if (this.gameMode === "plan") {
+          const nextJumpTime = this.jumpTimes[0];
+          if (nextJumpTime && this.runningTime > nextJumpTime) {
+            this.tRex.startJump(this.currentSpeed);
+            this.jumpTimes.shift(); // Remove the first jump time after jumping
+          }
+        } else {
+          if (
+            !this.isAwaitingServerResponse &&
+            this.lastCallTime + SERVER_CALL_INTERVAL < now
+          ) {
+            console.log(`Sending request to server...`);
+            this.lastCallTime = now;
+            try {
+              this.isAwaitingServerResponse = true;
 
-            const cleanedObstacles = (this.horizon.obstacles || []).map(
-              (obstacle) => ({
-                collisionBoxes: obstacle.collisionBoxes,
-                type: obstacle.typeConfig.type,
-                xPos: obstacle.xPos,
-                yPos: obstacle.yPos,
+              const cleanedObstacles = (this.horizon.obstacles || []).map(
+                (obstacle) => ({
+                  collisionBoxes: obstacle.collisionBoxes,
+                  type: obstacle.typeConfig.type,
+                  xPos: obstacle.xPos,
+                  yPos: obstacle.yPos,
+                })
+              );
+
+              fetch("http://127.0.0.1:8000/process_obstacles", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  speed: this.currentSpeed,
+                  isNight: this.inverted,
+                  obstacles: cleanedObstacles,
+                }),
               })
-            );
+                .then((response) => response.json())
+                .then((data) => {
+                  console.log("Server response:", data);
+                  // Check if the server response indicates a jump
+                  // The data format is a json object containing a boolean "jump" flag
 
-            fetch("http://127.0.0.1:8000/process_obstacles", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                speed: this.currentSpeed,
-                isNight: this.inverted,
-                obstacles: cleanedObstacles,
-              }),
-            })
-              .then((response) => response.json())
-              .then((data) => {
-                console.log("Server response:", data);
-                // Check if the server response indicates a jump
-                // The data format is a json object containing a boolean "jump" flag
-
-                this.isAwaitingServerResponse = false;
-                if (data.jump) {
-                  this.tRex.startJump(this.currentSpeed);
-                }
-              })
-              .catch((error) => {
-                console.error("Error calling the server:", error);
-                this.isAwaitingServerResponse = false;
-              });
-          } catch (error) {
-            console.error("Error in fetch block:", error);
+                  this.isAwaitingServerResponse = false;
+                  if (data.jump) {
+                    this.tRex.startJump(this.currentSpeed);
+                  }
+                })
+                .catch((error) => {
+                  console.error("Error calling the server:", error);
+                  this.isAwaitingServerResponse = false;
+                });
+            } catch (error) {
+              console.error("Error in fetch block:", error);
+            }
           }
         }
 
@@ -2897,6 +2966,48 @@
 
     removeFirstObstacle: function () {
       this.obstacles.shift();
+    },
+
+    planObstacles: function () {
+      // Plan out for 30 seconds of obstacles.
+      var numSec = 30;
+      var numFrames = numSec * 60;
+      var currentSpeed = this.config.SPEED;
+      var currentXPos = 0;
+      var framesUntilNextObstacle = 3 * 60;
+
+      for (var i = 0; i < numFrames; i++) {
+        // Update the speed
+        currentXPos += currentSpeed;
+
+        // Add a new obstacle every second after the 3rd second
+        if (framesUntilNextObstacle <= 0) {
+          framesUntilNextObstacle = getRandomNum(15, 60);
+
+          // Add a new obstacle
+          var obstacleTypeIndex = getRandomNum(0, Obstacle.types.length - 1);
+          var obstacleType = Obstacle.types[obstacleTypeIndex];
+
+          // Check for multiples of the same type of obstacle.
+          // Also check obstacle is available at current speed.
+
+          var obstacleSpritePos = this.spritePos[obstacleType.type];
+
+          this.obstacles.push(
+            new Obstacle(
+              this.canvasCtx,
+              obstacleType,
+              obstacleSpritePos,
+              this.dimensions,
+              this.gapCoefficient,
+              currentSpeed,
+              obstacleType.width - dimensions.WIDTH + currentXPos
+            )
+          );
+        }
+      }
+      framesUntilNextObstacle--;
+      currentSpeed += this.config.ACCELERATION;
     },
 
     /**
