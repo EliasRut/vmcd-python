@@ -12,17 +12,13 @@ def process_obstacles(data: ProcessObstaclesCallData) -> ProcessObstaclesCallRes
     # Implement the logic to process the obstacles and determine if the t-rex should jump
     # For now, we will just return True as a placeholder
 
-    for obstacle in data.obstacles:
-        if obstacle["xPos"] < 100 + (data.speed * 10):  # Example condition to check if the obstacle is close
-            return {"jump": True}
-
     ####################################################################################
     # This is where your code goes                                                     #
     # You can access the obstacles using data.obstacles                                #
     # You can access the speed using data.speed                                        #
     ####################################################################################
 
-    return {"jump": False}
+    return {"jump": True}
 
 
 # The actual logic to process the obstacles will be implemented in this function
