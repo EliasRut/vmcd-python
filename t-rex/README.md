@@ -1,10 +1,14 @@
 # To run the server, install fastapi via pip:
 
-# pip install "fastapi[standard]"
+```
+pip install "fastapi[standard]"
+```
 
 # Then run the server using fastapi dev:
 
-# fastapi dev server.py
+```
+fastapi dev server.py
+```
 
 ## t-rex-runner
 

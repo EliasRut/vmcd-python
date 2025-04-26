@@ -18,8 +18,11 @@ def process_obstacles(data: ProcessObstaclesCallData) -> ProcessObstaclesCallRes
     # You can access the speed using data.speed                                        #
     ####################################################################################
 
-    return {"jump": True}
+    if data.obstacles:
+        if data.obstacles[0]["xPos"] < 100:
+            return {"jump": True}
 
+    return {"jump": False}
 
 # The actual logic to process the obstacles will be implemented in this function
 @app.post("/plan")
@@ -36,14 +39,14 @@ def plan(data: PlanCallData) -> PlanCallResponse:
     # You can access the speed using data.speed                                        #
     ####################################################################################
 
-    return {} # "jumpTimes": [1000, 2000, 3000]}  # Example response with jump times
+    return {"jumpTimes": [1000, 2000, 3000, 4000, 5000]}  # Example response with jump times
 
 @app.get("/mode")
 def get_mode() -> GetModeResponse:
     """
     Informs the frontend which game mode we want to use.
     """
-    return {"mode": "live"}  # Either "live" or "plan"
+    return {"mode": "plan"}  # Either "live" or "plan"
 
 # Server index.html page under root path
 @app.get("/")

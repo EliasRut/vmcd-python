@@ -73,6 +73,8 @@
     this.isAwaitingServerResponse = false;
     this.lastCallTime = 0;
     this.jumpTimes = [];
+    this.shouldPlanObstacles = false;
+    this.isPlanningObstacles = false;
 
     if (this.isDisabled()) {
       this.setupDisabledRunner();
@@ -588,30 +590,13 @@
           .then((response) => response.json())
           .then((data) => {
             console.log("Server response for Game Mode:", data);
-            if (data.mode) {
+            if (data.mode && data.mode === "plan") {
               this.gameMode = data.mode;
 
-              if (this.gameMode === "plan") {
-                // this.planObstacles();
-                // Inform the server about the planned obstacles
-                console.log("Planning obstacles...");
-                return fetch("http://172.0.0.1:8000/plan", {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    obstacles: this.horizon.obstacles,
-                    initialSpeed: this.currentSpeed,
-                    acceleration: this.config.ACCELERATION,
-                  }),
-                })
-                  .then((response) => response.json())
-                  .then((data) => {
-                    console.log("Server response for planned obstacles:", data);
-                    this.jumpTimes = data.jumpTimes;
-                  });
-              }
+              this.horizon.planObstacles(this.currentSpeed, this.config.ACCELERATION);
+              // Inform the server about the planned obstacles
+              console.log("Planning obstacles...");
+              this.shouldPlanObstacles = true;
             } else {
               this.gameMode = "live";
               console.warn('Defaulting to "live" mode');
@@ -624,6 +609,28 @@
           .finally(() => {
             this.isFetchingGameMode = false;
             this.hasFetchedGameMode = true;
+          });
+      }
+
+      if (this.shouldPlanObstacles) {
+        this.shouldPlanObstacles = false;
+        this.isPlanningObstacles = true;
+        fetch("http://127.0.0.1:8000/plan", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            obstacles: this.horizon.obstacles,
+            initialSpeed: this.currentSpeed,
+            acceleration: this.config.ACCELERATION,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            console.log("Server response for planned obstacles:", data);
+            this.jumpTimes = data.jumpTimes;
+            this.isPlanningObstacles = false;
           });
       }
 
@@ -2968,11 +2975,11 @@
       this.obstacles.shift();
     },
 
-    planObstacles: function () {
+    planObstacles: function (startingSpeed, acceleration) {
       // Plan out for 30 seconds of obstacles.
       var numSec = 30;
       var numFrames = numSec * 60;
-      var currentSpeed = this.config.SPEED;
+      var currentSpeed = startingSpeed;
       var currentXPos = 0;
       var framesUntilNextObstacle = 3 * 60;
 
@@ -3007,7 +3014,7 @@
         }
       }
       framesUntilNextObstacle--;
-      currentSpeed += this.config.ACCELERATION;
+      currentSpeed += acceleration;
     },
 
     /**

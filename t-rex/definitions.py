@@ -39,6 +39,7 @@ class PlanCallData(BaseModel):
     """
     obstacles: List[dict]  # List of obstacles, each represented as a dictionary
     initialSpeed: float  # Speed of the t-rex
+    acceleration: float  # Acceleration of the t-rex
 
 class PlanCallResponse(BaseModel):
     """
